@@ -1,0 +1,244 @@
+﻿<AML>
+ <Item type="Method" id="EFBD3453100F487181805F7EFB4499B5" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[// context item:  ECN
+// called from action: "ECN Run WhereUsed Impact"
+// or called from events: onAfterAdd, onAfterUpdate of "ECN Affected Item"
+
+//System.Diagnostics.Debugger.Launch();System.Diagnostics.Debugger.Break();
+
+string affectedItemId = this.getAttribute("affectedItemId","");
+
+// load ecn from cache
+Item ecnItem = this.getInnovator().getItemById(this.getType(), this.getID());
+
+string ecnId = ecnItem.getID();  // if called from action
+Item affectedItem = null;
+Item affectedItemRels = null;
+int loopCount = 0;
+if (affectedItemId != "") {
+    // build tmp afftected item -
+    affectedItem = this.newItem("Affected Item");
+    affectedItem.setProperty("affected_id", affectedItemId);
+    affectedItem.setProperty("affected_how","Start");  // assume this must be a start item
+    loopCount = 1;
+}
+else {
+    // read affected items from ECN
+    ecnItem.fetchRelationships("ECN Affected Item");
+    affectedItemRels = ecnItem.getRelationships("ECN Affected Item");
+    
+    loopCount = affectedItemRels.getItemCount();
+}
+
+// intitalize
+if (loopCount > 0) {
+    GlobalVars.ccItemType = "Part";    //##  get this form poly item of ChangeControlled Item
+    GlobalVars.ccRelType = "Part BOM"; //##  could be CAD Structure, Part Document .. depending on ccItemType
+    GlobalVars.ccItemIds_tmp = "";
+    GlobalVars.ccItemNumbers_tmp = "";
+    GlobalVars.pathChr = "/";
+    GlobalVars.pathTopKeyword = "Top";
+}
+
+for (int i=0; i<loopCount; i++) {
+    if (affectedItemRels != null) {
+        Item affectedItemRel = affectedItemRels.getItemByIndex(i);
+        affectedItem = affectedItemRel.getRelatedItem();
+    }
+    
+    string affectedHow = affectedItem.getProperty("affected_how","");
+    affectedItemId = affectedItem.getProperty("affected_id","");
+    
+    if (affectedHow == "Start" && affectedItemId != "") {
+        GlobalVars.wuPath = new List<TextAndId>();
+
+        GetWhereUsedPathsOfItem(affectedItemId);
+        
+
+        for (int j=0; j<GlobalVars.wuPath.Count; j++) {
+            TextAndId wuPath = GlobalVars.wuPath[j];
+        
+            AddWhereUsedPathToECN(ecnItem, wuPath, affectedItemId);
+        }
+    }
+} 
+
+// for debugging only
+//return this;
+
+// Save ECN with new WhereUsed Impacts
+Aras.Server.Security.Identity identity = Aras.Server.Security.Identity.GetByName("Super User"); //Get super user identity
+bool permsWasSet = Aras.Server.Security.Permissions.GrantIdentity(identity);
+ecnItem.setAttribute("serverEvents","0");
+ecnItem = ecnItem.apply();
+if (permsWasSet) {Aras.Server.Security.Permissions.RevokeIdentity(identity);}
+
+return ecnItem;
+}
+
+// Global Variables
+public static class GlobalVars
+{
+    // Global static variable.
+    public static string ccItemId;
+    public static string ccItemType;
+    public static string ccRelType;
+	public static List<TextAndId> wuPath;
+    public static string ccItemIds_tmp;
+    public static string ccItemNumbers_tmp;
+    public static string prevItemIds_tmp;
+    public static string prevItemNumbers_tmp;
+    public static string pathChr;
+    public static string pathTopKeyword;
+
+	public static ArrayList NodeIdsByLevel;
+}
+
+// ------------------
+public struct TextAndId
+{
+    public string text;
+    public string id;
+}
+
+// ------------------
+private void GetWhereUsedPathsOfItem (string ccItemId) {
+    
+    this.fetchRelationships("ECN WhereUsed Impact");
+    
+    // cc = Change Controlled Item
+    int level = 0;
+    GlobalVars.ccItemIds_tmp = "";
+    GlobalVars.ccItemNumbers_tmp = "";
+
+    ResolveWhereUsed (ccItemId, level);
+}
+
+// ------------------
+private void AddWhereUsedPathToECN (Item ECNitem, TextAndId wuPath, string affItemId) {
+    string wuPathWithNumbers = wuPath.text;
+    string wuPathWithIds = wuPath.id;
+    string ECNitemId = ECNitem.getID();
+
+    int ECNlockStatus = ECNitem.getLockStatus();
+    if (ECNlockStatus == 0) {
+        ECNitem.setAction("edit");	    
+	}
+	else {
+        ECNitem.setAction("update");	    
+	}
+        	
+	Item wuImpactRels = ECNitem.getRelationships("ECN WhereUsed Impact");
+	if (wuImpactRels.getItemCount() <= 0) {
+	    ECNitem.fetchRelationships("ECN WhereUsed Impact");
+	    wuImpactRels = ECNitem.getRelationships("ECN WhereUsed Impact");
+	}
+	Item wuImpactRel = null;
+	string existingWuImpactRelId = "";
+	for (int i=0; i<wuImpactRels.getItemCount() && existingWuImpactRelId == ""; i++) {
+        wuImpactRel = wuImpactRels.getItemByIndex(i);
+        
+        string sourceId = wuImpactRel.getProperty("source_id","");
+        string affId = wuImpactRel.getProperty("affected_id","");
+        string wupids = wuImpactRel.getProperty("where_used_path_ids","");
+
+        // detect existing
+        if (sourceId == ECNitemId && affId == affItemId && wupids == wuPathWithIds ){
+            existingWuImpactRelId = wuImpactRel.getID();
+            wuImpactRel.setAction("edit");	    
+        }
+	}
+	
+    if (existingWuImpactRelId == "") {
+        wuImpactRel = ECNitem.createRelationship("ECN WhereUsed Impact","add");
+        wuImpactRel.setProperty("source_id",ECNitemId);
+        wuImpactRel.setProperty("affected_id",affItemId);
+        wuImpactRel.setProperty("where_used_path_ids",wuPathWithIds);
+    }
+    
+    // update properties on existing and on new relationship items
+    wuImpactRel.setProperty("where_used_path_numbers",wuPathWithNumbers);
+
+    wuImpactRel.setAttribute("serverEvents","0");
+//    wuImpactRel = wuImpactRel.apply();
+}
+
+// ---------------------------
+private void ResolveWhereUsed (string ccItemId, int level) {
+    
+	level++;
+    TextAndId nextLevelccItemIds = GetNextLevelccItemIds(ccItemId);
+    string[] nextLevelccItemIds_a = nextLevelccItemIds.id.Split(',');
+    string[] nextLevelccItemNums_a = nextLevelccItemIds.text.Split(',');
+
+    for (int i=0; i<nextLevelccItemIds_a.Length && nextLevelccItemIds_a[0] != ""; i++) {
+
+	    GlobalVars.prevItemIds_tmp = GlobalVars.ccItemIds_tmp;
+	    GlobalVars.prevItemNumbers_tmp = GlobalVars.ccItemNumbers_tmp;
+		GlobalVars.ccItemIds_tmp += GlobalVars.pathChr + nextLevelccItemIds_a[i];
+		GlobalVars.ccItemNumbers_tmp += GlobalVars.pathChr + nextLevelccItemNums_a[i];
+
+        ResolveWhereUsed (nextLevelccItemIds_a[i], level);
+
+    }
+    
+    if (nextLevelccItemIds_a[0] == "") {
+		level--;
+    		GlobalVars.ccItemIds_tmp += GlobalVars.pathChr + GlobalVars.pathTopKeyword;
+    		GlobalVars.ccItemNumbers_tmp += GlobalVars.pathChr + GlobalVars.pathTopKeyword;
+    		
+        	TextAndId tai = new TextAndId();
+        	tai.text = GlobalVars.ccItemNumbers_tmp;
+	        tai.id = GlobalVars.ccItemIds_tmp;
+	        GlobalVars.wuPath.Add(tai);
+
+	        GlobalVars.ccItemIds_tmp = GlobalVars.prevItemIds_tmp;
+            GlobalVars.ccItemNumbers_tmp = GlobalVars.prevItemNumbers_tmp;
+		return;
+	}
+
+}
+
+// ---------------------------
+private TextAndId GetNextLevelccItemIds (string thisLevelItemId) {
+    
+    string aml = "";
+    aml += "<Item type='"+GlobalVars.ccRelType+"' action='get' select='source_id(id,item_number),related_id(id,item_number),sort_order' >";
+    aml += " <related_id>"+thisLevelItemId+"</related_id>";
+    aml += " <source_id>";
+    aml += "  <Item type='"+GlobalVars.ccItemType+"' action='get' select='id,item_number,state'>";
+    aml += "  </Item>";
+    aml += " </source_id>";
+    aml += "</Item>";
+    
+    Item nextLevelRelAndParentItems = this.newItem("");
+    nextLevelRelAndParentItems.loadAML(aml);
+    
+    nextLevelRelAndParentItems = nextLevelRelAndParentItems.apply();
+    string ccItemIds = "";
+    string ccItemNumbers = "";
+    string sepChar = "";
+    for (int i=0; i<nextLevelRelAndParentItems.getItemCount(); i++) {
+        Item nextLevelRelAndParentItem = nextLevelRelAndParentItems.getItemByIndex(i);
+        ccItemIds +=  sepChar + nextLevelRelAndParentItem.getProperty("source_id","invalid");
+        ccItemNumbers +=  sepChar + nextLevelRelAndParentItem.getPropertyItem("source_id").getProperty("item_number","invalid");
+        sepChar = ",";
+    }
+	
+	TextAndId tai = new TextAndId();
+	tai.id = ccItemIds;
+	tai.text = ccItemNumbers;
+ 
+    return tai;
+}
+
+
+// ---
+private void EoM () {
+    
+]]></method_code>
+  <method_type>C#</method_type>
+  <name>ECN Run WhereUsed Impact</name>
+ </Item>
+</AML>

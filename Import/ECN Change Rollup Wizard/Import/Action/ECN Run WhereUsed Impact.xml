@@ -1,0 +1,15 @@
+﻿<AML>
+ <Item type="Action" id="DED8625068F74487A0D24DD32D35A0FF" action="add">
+  <item_query />
+  <label xml:lang="en">Run Where Used Impact</label>
+  <location>client</location>
+  <method keyed_name="ECN Run WhereUsed Impact_a" type="Method">
+   <Item type="Method" action="get" select="id">
+    <name>ECN Run WhereUsed Impact_a</name>
+   </Item>
+  </method>
+  <target>none</target>
+  <type>item</type>
+  <name>ECN Run WhereUsed Impact</name>
+ </Item>
+</AML>

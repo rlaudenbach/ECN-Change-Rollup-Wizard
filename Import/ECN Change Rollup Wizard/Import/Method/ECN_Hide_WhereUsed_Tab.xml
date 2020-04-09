@@ -1,0 +1,28 @@
+﻿<AML>
+ <Item type="Method" id="54EAA3A5EA304BC49437B640BF237C63" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[top.hideTabsByBusinessLogic = function() {
+ // If the tabbar is not yet ready, wait a bit and call the function recursively
+ if (!parent.relationships || !parent.relationships.relTabbarReady || parent.relationships.relTabbar.GetTabOrder("|") === "" ) {
+  setTimeout("top.hideTabsByBusinessLogic();", 30);
+  return;
+ }
+ // Get the value of the classification property from the form
+ var wuImpactEnabled = new String(document.thisItem.getProperty("where_used_impact_enabled","0"));
+ var tabbar = parent.relationships.relTabbar;
+    var tabID = null;
+   
+    if (wuImpactEnabled == "1") {
+        // do nothing
+        //return;
+    } else {
+     tabID = tabbar.GetTabId("Where Used Impact");
+     if (tabID) { tabbar.SetTabVisible(tabID,false); }
+    }
+   return;
+};
+setTimeout("top.hideTabsByBusinessLogic();", 20);]]></method_code>
+  <method_type>JavaScript</method_type>
+  <name>ECN_Hide_WhereUsed_Tab</name>
+ </Item>
+</AML>

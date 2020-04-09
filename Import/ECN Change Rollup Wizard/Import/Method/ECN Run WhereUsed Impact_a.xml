@@ -1,0 +1,40 @@
+﻿<AML>
+ <Item type="Method" id="FD0B1EC7159A4C99B3A03B5AAE1A751D" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[// check, if action can be run
+if (this.getProperty("where_used_impact_enabled","0") == "0") {
+    aras.AlertError("Where Used Impact is not enabled !");  //##TODO## add I18N support
+    return;
+}
+var allowWherUsedImpact = false;
+// ecn states for which where used impact can be run
+switch (this.getProperty("state","")){
+    case "New":
+    case "In Planning":
+        allowWherUsedImpact = true;    
+        break;
+}
+if (!allowWherUsedImpact) {
+    aras.AlertError("Where Used Impact is only allowed, if enabled and when in state 'New' or 'Planning' !");  //##TODO## add I18N support
+    return;
+}
+
+var islocked = thisItem.getLockStatus();
+if (islocked !== 1) {
+    aras.AlertError("Item must be locked/claimed to run this action !");  //##TODO## add I18N support
+    return;
+}
+
+// call server method to process action
+var res = this.apply("ECN Run WhereUsed Impact");
+if (res.isError()) {
+    aras.AlertError(res.getErrorString());
+    return;
+}
+aras.AlertSuccess("Where used impact has finished. Open 'Where Used Impact' tab.");
+return;
+]]></method_code>
+  <method_type>JavaScript</method_type>
+  <name>ECN Run WhereUsed Impact_a</name>
+ </Item>
+</AML>

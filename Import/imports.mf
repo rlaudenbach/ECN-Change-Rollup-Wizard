@@ -1,0 +1,6 @@
+<imports>
+  <package name="com.aras.innovator.solution.PLM" path="PLM\Import">
+    <dependson name="com.aras.innovator.solution.ApplicationCore" />
+  </package>
+  <package name="ECN Change Rollup Wizard" path="ECN Change Rollup Wizard\Import" />
+</imports>

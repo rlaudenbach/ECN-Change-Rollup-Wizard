@@ -1,0 +1,55 @@
+﻿<AML>
+ <Item type="Method" id="7B3DB71F0F2649D5B673D3B320361A4C" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[// if (getRelationshipProperty(relationshipID, 'user_input_data_type') != 'date') {
+// 	grid['columns_Experimental'].set(colNumber, 'editType', undefined);
+// 	return true;
+// }
+
+// var listNm = 'DateFormats';
+// var listNd = aras.getItem('List', 'name="' + listNm + '"', '<name>' + listNm + '</name>', 1);
+// if (!listNd) {
+// 	return true;
+// }
+
+debugger;
+if (colNumber < 0) { top.aras.AlertError("Error: Column not found"); return; }
+if (!gridApplet) { return; }
+
+// read from parent Item
+// Get relationItem
+var temp = parent.thisItem.getItemsByXPath("//Relationships/Item[@id='"+relationshipID+"']");
+var relItm = top.aras.newIOMItem("");
+relItm.loadAML(temp.node.xml);
+var wuPathNumber = relItm.getProperty("where_used_path_numbers","").split("/");
+var wuPathIds = relItm.getProperty("where_used_path_ids","").split("/");
+
+
+var labs = [];
+var vals = [];
+for (var i = wuPathIds.length-1; i>=0; i--) {
+	vals.push(wuPathIds[i]);
+	labs.push(wuPathNumber[i]);
+}
+
+//var field = "fff_interchangeable_item_num_D";
+var field = grid['columns_Experimental'].get(colNumber, 'name');
+
+grid['columns_Experimental'].set(field, 'editType', 'FilterComboBox');
+grid['columns_Experimental'].set(field, 'comboList', vals, labs);
+
+//gridApplet.cells(relationshipID,colNumber).setEditType(3);  // MultiVal List
+// gridApplet.cells(relationshipID,colNumber).setEditType(2);  // Combobox
+//var field = grid.columns_Experimental.get(colNumber, "name");
+// gridApplet.columns_Experimental.set( field, "comboList", vals, labs); 
+
+// //grid.setCellCombo(relationshipID, colNumber, vals, labs);
+// grid['columns_Experimental'].set(colNumber, 'editType', 'FilterComboBox');
+// grid['columns_Experimental'].set(colNumber, 'comboList', vals, labs);
+
+return true;
+]]></method_code>
+  <method_type>JavaScript</method_type>
+  <name>ECN_wu_FFF_item_dropdown</name>
+ </Item>
+</AML>

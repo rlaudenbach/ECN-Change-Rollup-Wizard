@@ -1,0 +1,90 @@
+﻿<AML>
+ <Item type="Method" id="64EDC320FE474FBA93289E31A2ADF4D7" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[//context iteM:  ECN
+// called from pre-path of Life Cycle transition.  "In Review --> Released" of Lifecycle "ECN"
+
+// Note: at the end of the checks, if no errors, standard method : "PE_ChangeItemTransition" must be called
+
+//System.Diagnostics.Debugger.Launch();System.Diagnostics.Debugger.Break();
+
+// ensure affected Items are loaded with this ecn item
+Item affectedItemRels = this.getRelationships("ECN Affected Item");
+if (affectedItemRels.getItemCount() <= 0) {
+    this.fetchRelationships("ECN Affected Item");
+    affectedItemRels = this.getRelationships("ECN Affected Item");
+}
+
+// ensure where used impacts are loaded with this ecn item
+Item wuImpactRels = this.getRelationships("ECN WhereUsed Impact");
+if (wuImpactRels.getItemCount() <= 0) {
+    this.fetchRelationships("ECN WhereUsed Impact");
+    wuImpactRels = this.getRelationships("ECN WhereUsed Impact");
+}
+
+// Loop where used impact list
+// For each fff_interchangeable item, if released, float the Part BOM relationship
+// to pull-in the ids as listed in “new_item_id” on Affected Items (replace related_ids by logic)
+for (int i= 0; i<wuImpactRels.getItemCount(); i++) {
+    Item wuImpactRel = wuImpactRels.getItemByIndex(i);
+
+    string fffItemId = wuImpactRel.getProperty("fff_interchangeable_id","");
+    string[] wuPathIds_a = wuImpactRel.getProperty("where_used_path_ids","").Split('/');
+    
+    if (fffItemId != "" && fffItemId != "Top") {
+        string fffItemType = wuImpactRel.getPropertyAttribute("affected_id","type","");  // affected item must be the same type as fff item !!!
+        Item fffItem = this.getInnovator().getItemById(fffItemType,fffItemId);
+        
+        // BOM Floating is only necessary on released items
+        if (fffItem.getProperty("is_released","0") == "1" || fffItem.getProperty("state","") == "Released") {
+                
+            // get next down child id parent from path
+            string fffChildItemId = "";
+            for (int j= 1; j<wuPathIds_a.Length && fffChildItemId == ""; j++) {
+                if (j > 1 && wuPathIds_a[j] == fffItemId) {
+                    fffChildItemId = wuPathIds_a[j-1];
+                }
+            }    
+            if (fffChildItemId != "") {
+                Item res = FloatPartBOMofFFFitem (fffItemId, fffChildItemId, affectedItemRels); 
+                if (res.isError()) {return res;}
+            }
+        }
+    }
+}
+
+// use for debugging - and comment out when done !!!
+//return this.getInnovator().newError("aborted for debugging !!");
+
+// call standard PE processing
+return this.apply("PE_ChangeItemTransition");
+}
+
+// ---
+private Item FloatPartBOMofFFFitem (string parentItemId, string childItemId, Item affectedItemRels) {
+    Item affItemRow = affectedItemRels.getItemsByXPath("//Item[@type='Affected Item' and affected_id='"+childItemId+"']");
+    // retrieve all affected item details from server
+    // affItemRow = this.newItem(affItemRow.getType(),"get"); 
+    // affItemRow.setID(affItemRow.getID());
+    // affItemRow.setAttribute("select","*");
+    // affItemRow = affItemRow.apply();
+    
+    
+    if (affItemRow.getItemCount() == 1) {
+        string floatedChildItemId = affItemRow.getProperty("new_item_id","");
+        if (floatedChildItemId != "") {
+            string SQL = "UPDATE [Part_BOM] SET [Part_BOM].related_id='"+floatedChildItemId+"' "; 
+            SQL += "WHERE [Part_BOM].source_id='"+parentItemId+"' and [Part_BOM].related_id='"+childItemId+"'";
+            this.getInnovator().applySQL(SQL);
+        }
+    }
+    return this;
+}
+
+// ----
+private void EoM () {
+]]></method_code>
+  <method_type>C#</method_type>
+  <name>ECN Review to Released</name>
+ </Item>
+</AML>

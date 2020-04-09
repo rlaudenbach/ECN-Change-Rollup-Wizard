@@ -1,0 +1,79 @@
+﻿<AML>
+ <Item type="Method" id="7EBCC1FD2884407AA809FD7CC886F287" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[//context iteM:  ECN
+// called from pre-path of Life Cycle transition.  "In Planning --> In Work" of Lifecycle "ECN"
+
+// Note: at the end of the checks, if no errors, standard method : "PE_ChangeItemTransition" must be called
+
+
+//System.Diagnostics.Debugger.Launch();System.Diagnostics.Debugger.Break();
+if (this.getProperty("where_used_impact_enabled","0") == "1" ) {
+    
+    // ensure affected Items are loaded with this ecn item
+    Item affectedItemRels = this.getRelationships("ECN Affected Item");
+    if (affectedItemRels.getItemCount() <= 0) {
+        this.fetchRelationships("ECN Affected Item");
+        affectedItemRels = this.getRelationships("ECN Affected Item");
+    }
+    
+    Item affectedItemRel;
+    Item affectedItem;
+    
+    // Loop affected items. For each „item_action“ type with „Review“, throw an error
+    string itemAction = "";
+    for (int i= 0; i<affectedItemRels.getItemCount() && itemAction == ""; i++) {
+        affectedItemRel = affectedItemRels.getItemByIndex(i);
+        affectedItem = affectedItemRel.getRelatedItem();
+        
+        itemAction = affectedItem.getProperty("item_action","");
+        if (itemAction  != "Review") {
+            itemAction = "";
+        };
+    }
+    if (itemAction != "") {
+        return this.getInnovator().newError("Promotion to 'In Work' failed. Affected Items still has rows in 'Review' !");  // ## TODO ##  - I18N
+    }
+    
+    //For each „item_action“ type with „None“, remove affected item row
+    Item ecnAffItemsDelete = this.newItem("ECN","edit");
+    ecnAffItemsDelete.setID(this.getID());
+    bool applyDelete = false;
+    for (int i= 0; i<affectedItemRels.getItemCount(); i++) {
+        affectedItemRel = affectedItemRels.getItemByIndex(i);
+        affectedItem = affectedItemRel.getRelatedItem();
+        
+        if (affectedItem.getProperty("item_action","")  == "None") {
+    		Item rel = ecnAffItemsDelete.createRelationship("ECN Affected Item","delete");
+    		rel.setID(affectedItemRel.getID());
+    		this.removeRelationship(affectedItemRel);  // remove from 'this' context
+    		applyDelete = true;
+        };
+    }
+    
+	// save ECN with delete actions on Affected Items (also resets enabled flag)
+	Aras.Server.Security.Identity identity = Aras.Server.Security.Identity.GetByName("Super User"); //Get super user identity
+	bool permsWasSet = Aras.Server.Security.Permissions.GrantIdentity(identity);
+    if (applyDelete) {
+    	ecnAffItemsDelete.setAttribute("serverEvents","0");
+    	Item res = ecnAffItemsDelete.apply();
+    	if (res.isError()) {
+    	    if (permsWasSet) {Aras.Server.Security.Permissions.RevokeIdentity(identity);}
+    	    return res;
+    	}
+    }
+	
+    // delete where used impact rows with ignore path = 1
+    Item ECNwuDelete = this.newItem("ECN WhereUsed Impact","delete");
+    ECNwuDelete.setAttribute("where","[ECN_WhereUsed_Impact].source_id='"+this.getID()+"' and [ECN_WhereUsed_Impact].ignore_wu_path='1'");
+    ECNwuDelete.setAttribute("serverEvents","0");
+    ECNwuDelete = ECNwuDelete.apply();
+    if (permsWasSet) {Aras.Server.Security.Permissions.RevokeIdentity(identity);}
+}
+
+// call standard PE processing
+return this.apply("PE_ChangeItemTransition");]]></method_code>
+  <method_type>C#</method_type>
+  <name>ECN Plan to Work Checks</name>
+ </Item>
+</AML>

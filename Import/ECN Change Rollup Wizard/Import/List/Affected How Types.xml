@@ -1,0 +1,31 @@
+﻿<AML>
+ <Item type="List" id="2307C923C8394445866E5813A3453482" action="add">
+  <name>Where Used Impact Control</name>
+  <Relationships>
+   <Item type="Value" id="248A8236D010484F975FD0B314F82C86" action="add">
+    <label xml:lang="en">Review</label>
+    <sort_order>128</sort_order>
+    <source_id keyed_name="Where Used Impact Control" type="List">2307C923C8394445866E5813A3453482</source_id>
+    <value>Review</value>
+   </Item>
+   <Item type="Value" id="E2CD91B6A8FF48D1830096C03976E5BF" action="add">
+    <label xml:lang="en">Start</label>
+    <sort_order>256</sort_order>
+    <source_id keyed_name="Where Used Impact Control" type="List">2307C923C8394445866E5813A3453482</source_id>
+    <value>Start</value>
+   </Item>
+   <Item type="Value" id="26585B3401F749939E3BECE3A8625F59" action="add">
+    <label xml:lang="en">Impacted</label>
+    <sort_order>384</sort_order>
+    <source_id keyed_name="Where Used Impact Control" type="List">2307C923C8394445866E5813A3453482</source_id>
+    <value>Impacted</value>
+   </Item>
+   <Item type="Value" id="42179BD5B6C94C62BE3E8F5759817783" action="add">
+    <label xml:lang="en">Ignore</label>
+    <sort_order>512</sort_order>
+    <source_id keyed_name="Where Used Impact Control" type="List">2307C923C8394445866E5813A3453482</source_id>
+    <value>Ignore</value>
+   </Item>
+  </Relationships>
+ </Item>
+</AML>

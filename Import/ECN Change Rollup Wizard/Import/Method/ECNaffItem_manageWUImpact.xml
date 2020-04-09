@@ -1,0 +1,66 @@
+﻿<AML>
+ <Item type="Method" id="E429E1AB3F964B07A760C95BF9C12749" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[// context item: "ECN Affected Item"
+// called from events:  onAfterAdd, onAfterUpdate, onAfterDelete
+
+//System.Diagnostics.Debugger.Launch();System.Diagnostics.Debugger.Break();
+
+string thisAction = this.getAction();
+
+string ECNItemId = this.getProperty("source_id","invalid");
+Item ECNItem = this.getInnovator().getItemById ("ECN", ECNItemId);
+
+Item affectedItem = this.getRelatedItem();
+
+Item res = this;
+if (thisAction == "delete") {
+    
+    res = DeleteWUimpactsOfChange("ECN WhereUsed Impact", ECNItemId, affectedItem );
+    if (res.isError()) { return res;}
+}
+else {
+    string itemAction = affectedItem.getProperty("item_action","");
+    string affectedHow = affectedItem.getProperty("affected_how","");
+    if (itemAction == "None") {
+        res = DeleteWUimpactsOfChange("ECN WhereUsed Impact", ECNItemId, affectedItem );
+        if (res.isError()) { return res;}
+    }
+
+    if (itemAction != "None" && affectedHow == "Start") {
+        string affectedItemId = affectedItem.getProperty("affected_id","");
+        ECNItem.setAttribute("affectedItemId",affectedItemId);
+        res = ECNItem.apply("ECN Run WhereUsed Impact");
+        if (res.isError()) { return res;}
+    }
+}
+
+return this;
+}
+
+// ---------
+private Item DeleteWUimpactsOfChange (string wuItemType, string changeItemId, Item affectedItem ) {
+    
+    string affectedItemId = affectedItem.getProperty("affected_id","");
+    string wuItemTable = wuItemType.Replace(" ","_");
+    
+    Item ECNwuDelete = this.newItem(wuItemType,"delete");
+    ECNwuDelete.setAttribute("where","["+wuItemTable+"].source_id='"+changeItemId+"' and ["+wuItemTable+"].affected_id='"+affectedItemId+"'");
+    ECNwuDelete.setAttribute("serverEvents","0");
+    
+    //Get super user identity
+    Aras.Server.Security.Identity identity = Aras.Server.Security.Identity.GetByName("Super User");
+    bool permsWasSet = Aras.Server.Security.Permissions.GrantIdentity(identity);
+    Item res = ECNwuDelete.apply();
+    if (permsWasSet) {Aras.Server.Security.Permissions.RevokeIdentity(identity);}
+    
+    return res;
+}
+
+// ---
+private void EoM () {
+]]></method_code>
+  <method_type>C#</method_type>
+  <name>ECNaffItem_manageWUImpact</name>
+ </Item>
+</AML>
